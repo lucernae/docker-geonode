@@ -1,0 +1,13 @@
+version: '3'
+services:
+  geonode:
+    image: ${IMAGE_NAME}:${IMAGE_TAG}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BASE_IMAGE: ${BASE_IMAGE}
+        BASE_GEONODE_REPO: ${BASE_GEONODE_REPO}
+        BASE_GEONODE_REPO_NAME: ${BASE_GEONODE_REPO_NAME}
+        BASE_GEONODE_COMMIT: ${BASE_GEONODE_COMMIT}
+        

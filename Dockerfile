@@ -1,31 +1,31 @@
 #--------- Generic stuff all our Dockerfiles should start with so we get caching ------------
-FROM ubuntu:trusty
-MAINTAINER Tim Sutton<tim@linfiniti.com>
+ARG BASE_IMAGE=geonode/spcgeonode:django-3.0
+FROM ${BASE_IMAGE}
 
-RUN  export DEBIAN_FRONTEND=noninteractive
-ENV  DEBIAN_FRONTEND noninteractive
-RUN  dpkg-divert --local --rename --add /sbin/initctl
-#RUN  ln -s /bin/true /sbin/initctl
+LABEL maintainer="Rizky Maulana Nugraha <lana.pcfre@gmail.com>"
+LABEL org="Kartoza"
 
-# Use local cached debs from host (saves your bandwidth!)
-# Change ip below to that of your apt-cacher-ng host
-# Or comment this line out if you do not with to use caching
-ADD 71-apt-cacher-ng /etc/apt/apt.conf.d/71-apt-cacher-ng
+RUN mkdir -p /usr/share/man/man1
+RUN apt-get update -y && apt-get -y --allow-downgrades --allow-remove-essential --allow-unauthenticated install yui-compressor rpl mdbtools git
 
-RUN echo "deb http://archive.ubuntu.com/ubuntu trusty main universe" > /etc/apt/sources.list
-RUN apt-get update -y
+WORKDIR /spcgeonode
 
-#-------------Application Specific Stuff ----------------------------------------------------
+RUN rm -rf *
+# Efficiently retrieve just specific commit
+ARG BASE_GEONODE_REPO=https://github.com/kartoza/geonode.git
+ARG BASE_GEONODE_REPO_NAME=kartoza
+ARG BASE_GEONODE_COMMIT=e6289a7bc6defd60afb1fc8a0e8e0a7c7f1e8ba4
+RUN git init; git remote add ${BASE_GEONODE_REPO_NAME} ${BASE_GEONODE_REPO};
+RUN git fetch ${BASE_GEONODE_REPO_NAME} ${BASE_GEONODE_COMMIT}; git reset --hard FETCH_HEAD
+RUN pip install -r requirements.txt
 
-RUN apt-get -y -f install --no-install-recommends openjdk-7-jdk; update-alternatives –config java
-RUN apt-get install -q -y python python-pip python-dev python-lxml gdal-bin
+RUN pip uninstall -y django-geonode-mapstore-client
 
-RUN pip install geonode
+ADD REQUIREMENTS.txt /REQUIREMENTS.txt
+RUN pip install -r /REQUIREMENTS.txt
 
-RUN django-admin.py startproject project_name --template=https://github.com/GeoNode/geonode-project/archive/master.zip -epy,rst
-
-WORKDIR project_name
-RUN paver setup
-EXPOSE 8000
-CMD paver start -b 0.0.0.0:8000
-
+ADD entrypoint.sh /entrypoint.sh
+ADD initialize.py /initialize.py
+ADD uwsgi.conf /uwsgi.conf
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["uwsgi", "--ini", "/uwsgi.conf"]
